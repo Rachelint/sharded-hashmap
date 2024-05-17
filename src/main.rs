@@ -123,7 +123,7 @@ fn gen_delta3(len: usize, shard_num: u32) -> Vec<ShardedTestPair> {
     vec_delta
 }
 
-fn hash_merge_batch(mut hash_base: Vec<HashMap<u128, Vec<u128>>>, mut delta: Vec<ShardedTestPair>) {
+fn hash_merge_batch(hash_base: &mut Vec<HashMap<u128, Vec<u128>>>, mut delta: Vec<ShardedTestPair>) {
     delta.sort_by_key(|k| k.shard_id);
     for d in delta.into_iter() {
         let a = hash_base[d.shard_id as usize].entry(d.key).or_default();
@@ -131,7 +131,7 @@ fn hash_merge_batch(mut hash_base: Vec<HashMap<u128, Vec<u128>>>, mut delta: Vec
     }
 }
 
-fn hash_merge(mut hash_base: Vec<HashMap<u128, Vec<u128>>>, mut delta: Vec<TestPair>) {
+fn hash_merge(hash_base: &mut Vec<HashMap<u128, Vec<u128>>>, mut delta: Vec<TestPair>) {
     let shard_num = hash_base.len();
     for TestPair { key, value } in delta {
         let shard_id = (key % shard_num as u128) as usize;
@@ -252,23 +252,29 @@ fn main() {
     // println!("sort merge cost:{elapsed:?}");
     let mode = std::env::args().nth(1).unwrap();
     let bench_len = std::env::args().nth(2).unwrap().parse::<usize>().unwrap();
+    let shard_num = std::env::args().nth(3).unwrap().parse::<usize>().unwrap();
+    let cnt =  std::env::args().nth(4).unwrap().parse::<usize>().unwrap();
 
     // hash merge
     if mode == "random" {
-        let append_base = gen_hash_base (bench_len, 512);
+        let mut append_base = gen_hash_base (bench_len, shard_num);
         let delta = gen_delta2(bench_len);
         let timer = Instant::now();
-        hash_merge(append_base, delta);
+        for _ in 0..cnt {
+            hash_merge(&mut append_base, delta.clone());
+        }
         let elapsed = timer.elapsed();
         println!("mode:{mode} append cost:{elapsed:?}");
     }
 
     // hash merge 2
     if mode == "batch" {
-        let append_base = gen_hash_base(bench_len, 512);
-        let delta = gen_delta3(bench_len, 512);
+        let mut append_base = gen_hash_base(bench_len, shard_num);
+        let delta = gen_delta3(bench_len, shard_num as u32);
         let timer = Instant::now();
-        hash_merge_batch(append_base, delta);
+        for _ in 0..cnt {
+            hash_merge_batch(&mut append_base, delta.clone());
+        }
         let elapsed = timer.elapsed();
         println!("mode:{mode} append cost:{elapsed:?}");
     }
