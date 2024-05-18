@@ -84,7 +84,7 @@ fn main() {
     let timer = Instant::now();
 
     // hash merge
-    if mode == "random" {
+    if mode == "special" {
         for _ in 0..cnt {
             hash_merge_vec_delta(&mut append_base, &mut vec_buf, &delta, false);
             hash_merge(&mut append_base, &vec_buf[0]);
@@ -92,7 +92,12 @@ fn main() {
                 buf.clear();
             }
         }
-    } else if mode == "buffer" {
+    } else if mode == "random" {
+        for _ in 0..cnt {
+            hash_merge(&mut append_base, &delta);
+        }
+    } 
+    else if mode == "buffer" {
         for _ in 0..cnt {
             hash_merge_vec_delta(&mut append_base, &mut vec_buf, &delta, false);
             hash_merge_vec_delta(&mut append_base, &mut vec_buf, &delta, true);
