@@ -67,6 +67,15 @@ fn hash_merge(hash_base: &mut Vec<HashMap<KeyType, Vec<ValueType>>>, delta: &Vec
     }
 }
 
+fn hash_merge_special(hash_base: &mut Vec<HashMap<KeyType, Vec<ValueType>>>, delta: &Vec<KVPair>) {
+    let shard_num = hash_base.len();
+    for d in delta {
+        let shard_id = (d.key % shard_num as KeyType) as usize;
+        let entry = hash_base[0].entry(d.key).or_default();
+        entry.push(d.value);
+    }
+}
+
 fn inspect(maps: &Vec<HashMap<KeyType, Vec<ValueType>>>) {
     for (idx, map) in maps.iter().enumerate() {
         println!("###idx:{idx}, map cap:{}", map.capacity())
@@ -86,11 +95,7 @@ fn main() {
     // hash merge
     if mode == "special" {
         for _ in 0..cnt {
-            hash_merge_vec_delta(&mut append_base, &mut vec_buf, &delta, false);
-            hash_merge(&mut append_base, &vec_buf[0]);
-            for buf in vec_buf.iter_mut() {
-                buf.clear();
-            }
+            hash_merge_special(&mut append_base, &delta);
         }
     } else if mode == "random" {
         for _ in 0..cnt {
