@@ -3,16 +3,19 @@ use rand::thread_rng;
 use std::collections::HashMap;
 use std::time::Instant;
 
+type KeyType = u128;
+type ValueType = u128;
+
 #[derive(Copy, Clone, Debug, Default)]
 struct KVPair {
-    key: u64,
-    value: u64,
+    key: KeyType,
+    value: ValueType,
 }
 
-fn gen_hash_base(len: usize, shard_num: usize) -> Vec<HashMap<u64, Vec<u64>>> {
+fn gen_hash_base(len: usize, shard_num: usize) -> Vec<HashMap<KeyType, Vec<ValueType>>> {
     let mut hash_base = vec![HashMap::with_capacity(len); shard_num];
-    for i in 0..len as u64 {
-        let shard_id = (i % shard_num as u64) as usize;
+    for i in 0..len as KeyType {
+        let shard_id = (i % shard_num as KeyType) as usize;
         let mut vec = Vec::with_capacity(16);
         vec.push(1);
         hash_base[shard_id].insert(i, vec);
@@ -29,7 +32,7 @@ fn gen_vec_delta_buf(len: usize, shard_num: usize) -> Vec<Vec<KVPair>> {
 
 fn gen_delta(len: usize) -> Vec<KVPair> {
     let mut vec_delta = Vec::with_capacity(len);
-    for i in 0..len as u64 {
+    for i in 0..len as KeyType {
         vec_delta.push(KVPair { key: i, value: 2 });
     }
     vec_delta.shuffle(&mut thread_rng());
@@ -37,11 +40,11 @@ fn gen_delta(len: usize) -> Vec<KVPair> {
     vec_delta
 }
 
-fn hash_merge_vec_delta(hash_base: &mut Vec<HashMap<u64, Vec<u64>>>, vec_buf: &mut Vec<Vec<KVPair>>, delta: &Vec<KVPair>, merge: bool) {
+fn hash_merge_vec_delta(hash_base: &mut Vec<HashMap<KeyType, Vec<ValueType>>>, vec_buf: &mut Vec<Vec<KVPair>>, delta: &Vec<KVPair>, merge: bool) {
     if !merge {
         let shard_num = hash_base.len();
         for pair in delta {
-            let shard_id = (pair.key % shard_num as u64) as usize;
+            let shard_id = (pair.key % shard_num as KeyType) as usize;
             vec_buf[shard_id].push(*pair);
         }
         return;
@@ -55,10 +58,10 @@ fn hash_merge_vec_delta(hash_base: &mut Vec<HashMap<u64, Vec<u64>>>, vec_buf: &m
     }
 }
 
-fn hash_merge(hash_base: &mut Vec<HashMap<u64, Vec<u64>>>, delta: Vec<KVPair>) {
+fn hash_merge(hash_base: &mut Vec<HashMap<KeyType, Vec<ValueType>>>, delta: Vec<KVPair>) {
     let shard_num = hash_base.len();
     for KVPair { key, value } in delta {
-        let shard_id = (key % shard_num as u64) as usize;
+        let shard_id = (key % shard_num as KeyType) as usize;
         let entry = hash_base[shard_id].entry(key).or_default();
         entry.push(value);
     }
