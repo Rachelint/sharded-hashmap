@@ -60,10 +60,10 @@ fn hash_merge_vec_delta(hash_base: &mut Vec<HashMap<KeyType, Vec<ValueType>>>, v
 
 fn hash_merge(hash_base: &mut Vec<HashMap<KeyType, Vec<ValueType>>>, delta: &Vec<KVPair>) {
     let shard_num = hash_base.len();
-    for KVPair { key, value } in delta {
-        let shard_id = (key % shard_num as KeyType) as usize;
-        let entry = hash_base[shard_id].entry(*key).or_default();
-        entry.push(*value);
+    for d in delta {
+        // let shard_id = (d.key % shard_num as KeyType) as usize;
+        let entry = hash_base[0].entry(d.key).or_default();
+        entry.push(d.value);
     }
 }
 
@@ -78,22 +78,21 @@ fn main() {
     let bench_len = std::env::args().nth(2).unwrap().parse::<usize>().unwrap();
     let shard_num = std::env::args().nth(3).unwrap().parse::<usize>().unwrap();
     let cnt =  std::env::args().nth(4).unwrap().parse::<usize>().unwrap();
+    let mut append_base = gen_hash_base(bench_len, shard_num);
+    let mut vec_buf = gen_vec_delta_buf(bench_len, shard_num);
+    let delta = gen_delta(bench_len);
+    let timer = Instant::now();
 
     // hash merge
     if mode == "random" {
-        let mut append_base = gen_hash_base(bench_len, shard_num);
-        let delta = gen_delta(bench_len);
-        let timer = Instant::now();
         for _ in 0..cnt {
-            hash_merge(&mut append_base, &delta);
+            hash_merge_vec_delta(&mut append_base, &mut vec_buf, &delta, false);
+            hash_merge(&mut append_base, &vec_buf[0]);
+            for buf in vec_buf.iter_mut() {
+                buf.clear();
+            }
         }
-        let elapsed = timer.elapsed();
-        println!("mode:{mode} append cost:{elapsed:?}");
     } else if mode == "buffer" {
-        let mut append_base = gen_hash_base(bench_len, shard_num);
-        let mut vec_buf = gen_vec_delta_buf(bench_len, shard_num);
-        let delta = gen_delta(bench_len);
-        let timer = Instant::now();
         for _ in 0..cnt {
             hash_merge_vec_delta(&mut append_base, &mut vec_buf, &delta, false);
             hash_merge_vec_delta(&mut append_base, &mut vec_buf, &delta, true);
@@ -101,10 +100,11 @@ fn main() {
                 buf.clear();
             }
         }
-        let elapsed = timer.elapsed();
-        println!("mode:{mode} append cost:{elapsed:?}");
     } else if mode == "inspect" {
         let append_base = gen_hash_base(bench_len, shard_num);
         inspect(&append_base);
     }
+
+    let elapsed = timer.elapsed();
+    println!("mode:{mode} append cost:{elapsed:?}, cap:{}", append_base[0].capacity());
 }
