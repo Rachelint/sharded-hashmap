@@ -72,6 +72,12 @@ fn gen_hash_base(len: usize, shard_num: usize) -> Vec<HashMap<u128, Vec<u128>>> 
     hash_base
 }
 
+fn gen_vec_delta_buf(len: usize, shard_num: usize) -> Vec<Vec<TestPair>> {
+    let per_buf_cap = len * 2 / shard_num;
+    let buf = vec![Vec::with_capacity(per_buf_cap); shard_num];
+    buf
+}
+
 fn gen_sorted_vec_base(len: usize) -> Vec<(u128, Vec<u128>)> {
     let mut vec_base = Vec::with_capacity(len);
     for i in 0..len as u128 {
@@ -98,9 +104,7 @@ fn gen_delta(len: usize) -> Vec<(u128, u128)> {
 fn gen_delta2(len: usize) -> Vec<TestPair> {
     let mut vec_delta = Vec::with_capacity(len);
     for i in 0..len as u128 {
-        for _ in 0..2 {
-            vec_delta.push(TestPair { key: i, value: 2 });
-        }
+        vec_delta.push(TestPair { key: i, value: 2 });
     }
     vec_delta.shuffle(&mut thread_rng());
 
@@ -110,24 +114,42 @@ fn gen_delta2(len: usize) -> Vec<TestPair> {
 fn gen_delta3(len: usize, shard_num: u32) -> Vec<ShardedTestPair> {
     let mut vec_delta = Vec::with_capacity(len);
     for i in 0..len as u128 {
-        for _ in 0..2 {
-            vec_delta.push(ShardedTestPair {
-                key: i,
-                value: 2,
-                shard_id: i as u32 % shard_num,
-            });
-        }
+        vec_delta.push(ShardedTestPair {
+            key: i,
+            value: 2,
+            shard_id: i as u32 % shard_num,
+        });
     }
     vec_delta.shuffle(&mut thread_rng());
 
     vec_delta
 }
 
-fn hash_merge_batch(hash_base: &mut Vec<HashMap<u128, Vec<u128>>>, mut delta: Vec<ShardedTestPair>) {
-    delta.sort_by_key(|k| k.shard_id);
+fn hash_merge_batch(hash_base: &mut Vec<HashMap<u128, Vec<u128>>>, mut delta: Vec<TestPair>) {
+    let shard_num = hash_base.len();
+    delta.sort_by_key(|k| k.key as usize % shard_num);
     for d in delta.into_iter() {
-        let a = hash_base[d.shard_id as usize].entry(d.key).or_default();
+        let shard_id = d.key as usize % shard_num;
+        let a = hash_base[shard_id].entry(d.key).or_default();
         a.push(d.value);
+    }
+}
+
+fn hash_merge_vec_delta(hash_base: &mut Vec<HashMap<u128, Vec<u128>>>, vec_buffer: &mut Vec<Vec<TestPair>>, delta: &Vec<TestPair>, merge: bool) {
+    if !merge {
+        let shard_num = hash_base.len();
+        for pair in delta {
+            let shard_id = (pair.key % shard_num as u128) as usize;
+            vec_buffer[shard_id].push(*pair);
+        }
+        return;
+    }
+
+    for (shard_id, shard_buf) in vec_buffer.iter().enumerate() {
+        for pair in shard_buf {
+            let a = hash_base[shard_id].entry(pair.key).or_default();
+            a.push(pair.value);
+        }
     }
 }
 
@@ -270,16 +292,35 @@ fn main() {
     // hash merge 2
     if mode == "batch" {
         let mut append_base = gen_hash_base(bench_len, shard_num);
-        let delta = gen_delta3(bench_len, shard_num as u32);
+        let delta = gen_delta2(bench_len);
         let timer = Instant::now();
         for _ in 0..cnt {
-            hash_merge_batch(&mut append_base, delta.clone());
+            let delta_clone = delta.clone();
+            hash_merge_batch(&mut append_base, delta_clone);
         }
         let elapsed = timer.elapsed();
         println!("mode:{mode} append cost:{elapsed:?}");
     }
 
-        // let append_base2 = gen_append_vec_base(bench_len, 256);
+    // hash merge 2
+    if mode == "buffer" {
+        let mut append_base = gen_hash_base(bench_len, shard_num);
+        let mut vec_buf = gen_vec_delta_buf(bench_len, shard_num);
+        let delta = gen_delta2(bench_len);
+        let timer = Instant::now();
+        for _ in 0..cnt {
+            let delta_clone = delta.clone();
+            hash_merge_vec_delta(&mut append_base, &mut vec_buf, &delta_clone, false);
+            hash_merge_vec_delta(&mut append_base, &mut vec_buf, &delta_clone, true);
+            for buf in vec_buf.iter_mut() {
+                buf.clear();
+            }
+        }
+        let elapsed = timer.elapsed();
+        println!("mode:{mode} append cost:{elapsed:?}");
+    }
+
+    // let append_base2 = gen_append_vec_base(bench_len, 256);
     // let delta2 = gen_delta3(bench_len, 8192);
     // let delta3 = gen_delta3(bench_len, 8192);
     // let append_base3 = Vec::with_capacity(delta3.len());
