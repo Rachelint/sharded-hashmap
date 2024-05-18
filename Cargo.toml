@@ -8,3 +8,6 @@ edition = "2021"
 [dependencies]
 rand = "0.8.5"
 voracious_radix_sort = "1.2.0"
+
+[profile.release]
+debug = true
