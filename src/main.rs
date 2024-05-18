@@ -61,8 +61,8 @@ fn hash_merge_vec_delta(hash_base: &mut Vec<HashMap<KeyType, Vec<ValueType>>>, v
 fn hash_merge(hash_base: &mut Vec<HashMap<KeyType, Vec<ValueType>>>, delta: &Vec<KVPair>) {
     let shard_num = hash_base.len();
     for d in delta {
-        // let shard_id = (d.key % shard_num as KeyType) as usize;
-        let entry = hash_base[0].entry(d.key).or_default();
+        let shard_id = (d.key % shard_num as KeyType) as usize;
+        let entry = hash_base[shard_id].entry(d.key).or_default();
         entry.push(d.value);
     }
 }
