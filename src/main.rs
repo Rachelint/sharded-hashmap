@@ -13,7 +13,7 @@ struct KVPair {
 }
 
 fn gen_hash_base(len: usize, shard_num: usize) -> Vec<HashMap<KeyType, Vec<ValueType>>> {
-    let mut hash_base = vec![HashMap::with_capacity(len); shard_num];
+    let mut hash_base = vec![HashMap::with_capacity(len / shard_num); shard_num];
     for i in 0..len as KeyType {
         let shard_id = (i % shard_num as KeyType) as usize;
         let mut vec = Vec::with_capacity(16);
@@ -25,7 +25,7 @@ fn gen_hash_base(len: usize, shard_num: usize) -> Vec<HashMap<KeyType, Vec<Value
 }
 
 fn gen_vec_delta_buf(len: usize, shard_num: usize) -> Vec<Vec<KVPair>> {
-    let per_buf_cap = len * 2 / shard_num;
+    let per_buf_cap = len / shard_num;
     let buf = vec![Vec::with_capacity(per_buf_cap); shard_num];
     buf
 }
@@ -67,6 +67,12 @@ fn hash_merge(hash_base: &mut Vec<HashMap<KeyType, Vec<ValueType>>>, delta: Vec<
     }
 }
 
+fn inspect(maps: &Vec<HashMap<KeyType, Vec<ValueType>>>) {
+    for (idx, map) in maps.iter().enumerate() {
+        println!("###idx:{idx}, map cap:{}", map.capacity())
+    }
+}
+
 fn main() {
     let mode = std::env::args().nth(1).unwrap();
     let bench_len = std::env::args().nth(2).unwrap().parse::<usize>().unwrap();
@@ -98,5 +104,8 @@ fn main() {
         }
         let elapsed = timer.elapsed();
         println!("mode:{mode} append cost:{elapsed:?}");
+    } else if mode == "inspect" {
+        let append_base = gen_hash_base(bench_len, shard_num);
+        inspect(&append_base);
     }
 }
