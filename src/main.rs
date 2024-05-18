@@ -58,7 +58,7 @@ fn hash_merge_vec_delta(hash_base: &mut Vec<HashMap<KeyType, Vec<ValueType>>>, v
     }
 }
 
-fn hash_merge(hash_base: &mut Vec<HashMap<KeyType, Vec<ValueType>>>, delta: Vec<KVPair>) {
+fn hash_merge(hash_base: &mut Vec<HashMap<KeyType, Vec<ValueType>>>, delta: &Vec<KVPair>) {
     let shard_num = hash_base.len();
     for KVPair { key, value } in delta {
         let shard_id = (key % shard_num as KeyType) as usize;
@@ -85,7 +85,7 @@ fn main() {
         let delta = gen_delta(bench_len);
         let timer = Instant::now();
         for _ in 0..cnt {
-            hash_merge(&mut append_base, delta.clone());
+            hash_merge(&mut append_base, &delta);
         }
         let elapsed = timer.elapsed();
         println!("mode:{mode} append cost:{elapsed:?}");
@@ -95,9 +95,8 @@ fn main() {
         let delta = gen_delta(bench_len);
         let timer = Instant::now();
         for _ in 0..cnt {
-            let delta_clone = delta.clone();
-            hash_merge_vec_delta(&mut append_base, &mut vec_buf, &delta_clone, false);
-            hash_merge_vec_delta(&mut append_base, &mut vec_buf, &delta_clone, true);
+            hash_merge_vec_delta(&mut append_base, &mut vec_buf, &delta, false);
+            hash_merge_vec_delta(&mut append_base, &mut vec_buf, &delta, true);
             for buf in vec_buf.iter_mut() {
                 buf.clear();
             }
