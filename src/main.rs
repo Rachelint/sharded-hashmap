@@ -13,7 +13,8 @@ struct KVPair {
 }
 
 fn gen_hash_base(len: usize, shard_num: usize) -> Vec<HashMap<KeyType, Vec<ValueType>>> {
-    let mut hash_base = vec![HashMap::with_capacity(len); shard_num];
+    let shard_len = len / shard_num;
+    let mut hash_base = vec![HashMap::with_capacity(shard_len); shard_num];
     for i in 0..len as KeyType {
         let shard_id = (i % shard_num as KeyType) as usize;
         let mut vec = Vec::with_capacity(16);
@@ -69,14 +70,14 @@ fn hash_merge(hash_base: &mut Vec<HashMap<KeyType, Vec<ValueType>>>, delta: Vec<
 
 fn main() {
     let mode = std::env::args().nth(1).unwrap();
-    let bench_len = std::env::args().nth(2).unwrap().parse::<usize>().unwrap();
+    let data_len = std::env::args().nth(2).unwrap().parse::<usize>().unwrap();
     let shard_num = std::env::args().nth(3).unwrap().parse::<usize>().unwrap();
     let cnt =  std::env::args().nth(4).unwrap().parse::<usize>().unwrap();
 
     // hash merge
     if mode == "random" {
-        let mut append_base = gen_hash_base(bench_len, shard_num);
-        let delta = gen_delta(bench_len);
+        let mut append_base = gen_hash_base(data_len, shard_num);
+        let delta = gen_delta(data_len);
         let timer = Instant::now();
         for _ in 0..cnt {
             hash_merge(&mut append_base, delta.clone());
@@ -84,9 +85,9 @@ fn main() {
         let elapsed = timer.elapsed();
         println!("mode:{mode} append cost:{elapsed:?}");
     } else if mode == "buffer" {
-        let mut append_base = gen_hash_base(bench_len, shard_num);
-        let mut vec_buf = gen_vec_delta_buf(bench_len, shard_num);
-        let delta = gen_delta(bench_len);
+        let mut append_base = gen_hash_base(data_len, shard_num);
+        let mut vec_buf = gen_vec_delta_buf(data_len, shard_num);
+        let delta = gen_delta(data_len);
         let timer = Instant::now();
         for _ in 0..cnt {
             let delta_clone = delta.clone();
