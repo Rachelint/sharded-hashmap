@@ -40,7 +40,12 @@ fn gen_delta(len: usize) -> Vec<KVPair> {
     vec_delta
 }
 
-fn hash_merge_vec_delta(hash_base: &mut Vec<HashMap<KeyType, Vec<ValueType>>>, vec_buf: &mut Vec<Vec<KVPair>>, delta: &Vec<KVPair>, merge: bool) {
+fn hash_merge_vec_delta(
+    hash_base: &mut Vec<HashMap<KeyType, Vec<ValueType>>>,
+    vec_buf: &mut Vec<Vec<KVPair>>,
+    delta: &Vec<KVPair>,
+    merge: bool,
+) {
     if !merge {
         let shard_num = hash_base.len();
         for pair in delta {
@@ -86,38 +91,40 @@ fn inspect(maps: &Vec<HashMap<KeyType, Vec<ValueType>>>) {
 }
 
 fn main() {
-    let mode = std::env::args().nth(1).unwrap();
-    let bench_len = std::env::args().nth(2).unwrap().parse::<usize>().unwrap();
-    let shard_num = std::env::args().nth(3).unwrap().parse::<usize>().unwrap();
-    let cnt =  std::env::args().nth(4).unwrap().parse::<usize>().unwrap();
-    let mut append_base = gen_hash_base(bench_len, shard_num);
-    let mut vec_buf = gen_vec_delta_buf(bench_len, shard_num);
-    let delta = gen_delta(bench_len);
-    let timer = Instant::now();
+    let a = HashMap::<u64, u64>::with_capacity(1000);
+    println!("{}", a.capacity());
+    // let mode = std::env::args().nth(1).unwrap();
+    // let bench_len = std::env::args().nth(2).unwrap().parse::<usize>().unwrap();
+    // let shard_num = std::env::args().nth(3).unwrap().parse::<usize>().unwrap();
+    // let cnt =  std::env::args().nth(4).unwrap().parse::<usize>().unwrap();
+    // let mut append_base = gen_hash_base(bench_len, shard_num);
+    // let mut vec_buf = gen_vec_delta_buf(bench_len, shard_num);
+    // let delta = gen_delta(bench_len);
+    // let timer = Instant::now();
 
-    // hash merge
-    if mode == "special" {
-        for _ in 0..cnt {
-            hash_merge_special(&mut append_base, &delta);
-        }
-    } else if mode == "random" {
-        for _ in 0..cnt {
-            hash_merge(&mut append_base, &delta);
-        }
-    } 
-    else if mode == "buffer" {
-        for _ in 0..cnt {
-            hash_merge_vec_delta(&mut append_base, &mut vec_buf, &delta, false);
-            hash_merge_vec_delta(&mut append_base, &mut vec_buf, &delta, true);
-            for buf in vec_buf.iter_mut() {
-                buf.clear();
-            }
-        }
-    } else if mode == "inspect" {
-        let append_base = gen_hash_base(bench_len, shard_num);
-        inspect(&append_base);
-    }
+    // // hash merge
+    // if mode == "special" {
+    //     for _ in 0..cnt {
+    //         hash_merge_special(&mut append_base, &delta);
+    //     }
+    // } else if mode == "random" {
+    //     for _ in 0..cnt {
+    //         hash_merge(&mut append_base, &delta);
+    //     }
+    // }
+    // else if mode == "buffer" {
+    //     for _ in 0..cnt {
+    //         hash_merge_vec_delta(&mut append_base, &mut vec_buf, &delta, false);
+    //         hash_merge_vec_delta(&mut append_base, &mut vec_buf, &delta, true);
+    //         for buf in vec_buf.iter_mut() {
+    //             buf.clear();
+    //         }
+    //     }
+    // } else if mode == "inspect" {
+    //     let append_base = gen_hash_base(bench_len, shard_num);
+    //     inspect(&append_base);
+    // }
 
-    let elapsed = timer.elapsed();
-    println!("mode:{mode} append cost:{elapsed:?}, cap:{}", append_base[0].capacity());
+    // let elapsed = timer.elapsed();
+    // println!("mode:{mode} append cost:{elapsed:?}, cap:{}", append_base[0].capacity());
 }
